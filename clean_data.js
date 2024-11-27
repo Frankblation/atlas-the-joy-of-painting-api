@@ -1,6 +1,18 @@
 import fs from 'fs';
 import csv from 'csv-parser';
 import { format } from '@fast-csv/format';
+import pkg from 'pg'; // Corrected import
+const { Client } = pkg;
+
+const client = new Client({
+    user: 'Frank',  // Update with your PostgreSQL username
+    host: 'localhost',      // Host of your PostgreSQL server
+    database: 'joy_of_painting', // Name of your database
+    password: 'root',  // Your database password
+    port: 5432,  // Default PostgreSQL port
+});
+
+client.connect();
 
 // Helper function to write data to CSV using @fast-csv/format
 const writeToPath = (writeStream, rows, options) => {
