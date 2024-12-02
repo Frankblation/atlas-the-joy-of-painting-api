@@ -1,46 +1,32 @@
---Create 'paintings' table
-CREATE TABLE paintings (
-    painting_id SERIAL PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    image_url TEXT
-);
--- Create 'colors' table
-CREATE TABLE colors (
-    color_id SERIAL PRIMARY KEY,
-    painting_id INT NOT NULL,
-    color_hex CHAR(7) NOT NULL,
-    color VARCHAR(50),
-    FOREIGN KEY (painting_id) REFERENCES paintings (painting_id)
-);
--- Create 'episodes' table
+-- Drop the tables if they exist
+DROP TABLE IF EXISTS episodes CASCADE;
+DROP TABLE IF EXISTS paintings CASCADE;
+DROP TABLE IF EXISTS painting_colors CASCADE;
+
+-- Now, create the tables again
 CREATE TABLE episodes (
     episode_id SERIAL PRIMARY KEY,
-    painting_id INT NOT NULL,
-    episode_number INT NOT NULL,
-    air_date INT NOT NULL,
-    season INT NOT NULL,
-    youtube_url TEXT,
-    FOREIGN KEY (painting_id) REFERENCES paintings (painting_id)
-);
--- Create 'features' table
-CREATE TABLE features (
-    feature_id SERIAL PRIMARY KEY,
-    feature_name TEXT NOT NULL UNIQUE
-);
--- Create 'painting_features' table
-CREATE TABLE painting_features (
-    painting_id INT NOT NULL,
-    feature_id INT NOT NULL,
-    value BOOLEAN NOT NULL,  -- Boolean value: TRUE or FALSE
-    FOREIGN KEY (painting_id) REFERENCES paintings (painting_id),
-    FOREIGN KEY (feature_id) REFERENCES features (feature_id),
-    PRIMARY KEY (painting_id, feature_id)  -- Ensures uniqueness for each painting-feature combination
+    title TEXT NOT NULL,
+    air_date DATE,
+    description TEXT
 );
 
+CREATE TABLE paintings (
+    painting_id SERIAL PRIMARY KEY,
+    painting_title TEXT NOT NULL,
+    season INT,
+    episode INT,
+    num_colors INT,
+    youtube_src TEXT,
+    colors TEXT,
+    color_hex TEXT,
+    painting_index INT,
+    img_src TEXT
+);
 
-
-
-
-
-
-
+CREATE TABLE painting_colors (
+    painting_color_id SERIAL PRIMARY KEY,
+    painting_id INT REFERENCES paintings(painting_id),
+    color_name TEXT,
+    color_hex TEXT
+);

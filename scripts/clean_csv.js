@@ -1,79 +1,92 @@
-// Import necessary modules
 import fs from 'fs';
-import csvParser from 'csv-parser';
+import { parse } from 'csv-parse';
+import { stringify } from 'csv-stringify';
+import { promisify } from 'util';
 
-// Paths for the CSV files
-const colorUsedFilePath = './Color_Used_cleaned.csv';
-const episodeDatesFilePath = './Episode_Dates_cleaned.csv';
-const subjectMatterFilePath = './subject_matter_cleaned.csv';
+// Promisify read/write functions
+const readFile = promisify(fs.readFile);
+const writeFile = promisify(fs.writeFile);
 
-// Function to read andx parse a CSV file
-const readCSVFile = (filePath) => {
-  return new Promise((resolve, reject) => {
-    const data = [];
-    fs.createReadStream(filePath)
-      .pipe(csvParser())
-      .on('data', (row) => data.push(row))
-      .on('end', () => resolve(data))
-      .on('error', (err) => reject(err));
+// Helper to clean text
+const cleanText = (text) => {
+  return text.toLowerCase().replace(/_/g, ' ').replace(/"/g, '').trim();
+};
+
+// Function to clean and save each file
+const cleanAndSaveFile = async (inputPath, outputPath, standardizeHeaders) => {
+  const rows = [];
+  const parser = fs.createReadStream(inputPath).pipe(parse({ columns: true }));
+
+  for await (const row of parser) {
+    const cleanedRow = {};
+    for (const [key, value] of Object.entries(row)) {
+      const cleanKey = standardizeHeaders ? cleanText(key) : key;
+      cleanedRow[cleanKey] = cleanText(value);
+    }
+    rows.push(cleanedRow);
+  }
+
+  const fields = Object.keys(rows[0]);
+  stringify(rows, { header: true, columns: fields }, async (err, output) => {
+    if (err) throw err;
+    await writeFile(outputPath, output);
+    console.log(`Cleaned data saved to ${outputPath}`);
   });
 };
 
-// Function to combine data from multiple CSV files
-const combineData = async () => {
-  try {
-    const [colorUsedData, episodeDatesData, subjectMatterData] = await Promise.all([
-      readCSVFile(colorUsedFilePath),
-      readCSVFile(episodeDatesFilePath),
-      readCSVFile(subjectMatterFilePath),
-    ]);
+// Function to combine files
+const combineFiles = async (inputFiles, outputPath) => {
+  const combinedData = [];
+  const uniqueHeaders = new Set();
 
-    // Combine data logic here. This will depend on how you want to merge these CSVs.
-    // Example: Combine by matching episode titles
-    const combinedData = colorUsedData.map((colorRow) => {
-      const episodeTitle = colorRow.painting_title;
-      const episodeDate = episodeDatesData.find((episode) => episode.TITLE === episodeTitle);
-      const subjectMatter = subjectMatterData.find((subject) => subject.TITLE === episodeTitle);
+  for (const filePath of inputFiles) {
+    const fileContent = await readFile(filePath, 'utf8');
+    const parser = parse(fileContent, { columns: true });
 
-      return {
-        ...colorRow,
-        episodeDate: episodeDate ? episodeDate.AIR_DATE : '',
-        subjectMatter: subjectMatter || {},
-      };
-    });
-
-    return combinedData;
-  } catch (error) {
-    console.error('Error combining data:', error);
-    throw error;
+    for await (const row of parser) {
+      combinedData.push(row);
+      Object.keys(row).forEach((header) => uniqueHeaders.add(header));
+    }
   }
+
+  // Deduplicate rows
+  const deduplicatedData = Array.from(
+    new Map(
+      combinedData.map((row) => [
+        row.title || row['painting title'] || JSON.stringify(row), // Use unique fields
+        row,
+      ])
+    ).values()
+  );
+
+  // Create CSV with unique headers
+  stringify(deduplicatedData, { header: true, columns: Array.from(uniqueHeaders) }, async (err, output) => {
+    if (err) throw err;
+    await writeFile(outputPath, output);
+    console.log(`Combined data saved to ${outputPath}`);
+  });
 };
 
-// Function to export combined data to a new CSV file
-const exportDataToCSV = (data, outputFilePath) => {
-  const header = Object.keys(data[0]).join(',') + '\n';
-  const rows = data
-    .map((row) =>
-      Object.values(row)
-        .map((value) => `"${value}"`)
-        .join(',')
-    )
-    .join('\n');
-
-  const csvContent = header + rows;
-  fs.writeFileSync(outputFilePath, csvContent, 'utf8');
-};
-
-// Main function to process the CSV files and export the combined data
+// Main function to orchestrate the process
 const processAndExportData = async () => {
-  try {
-    const combinedData = await combineData();
-    exportDataToCSV(combinedData, './combined_output.csv');
-    console.log('Data has been processed and exported to combined_output.csv');
-  } catch (error) {
-    console.error('Error during processing:', error);
-  }
+  const subjectMatterFile = 'Subject_Matter.csv';
+  const colorsUsedFile = 'Color_Used_cleaned.csv';
+  const episodeDatesFile = 'Episode_Dates_cleaned.csv';
+  const combinedFile = 'Combined_Cleaned_Data.csv';
+
+  // Clean individual files
+  await cleanAndSaveFile(subjectMatterFile, 'Subject_Matter_cleaned.csv', true);
+  await cleanAndSaveFile(colorsUsedFile, 'Color_Used_cleaned_v2.csv', true);
+  await cleanAndSaveFile(episodeDatesFile, 'Episode_Dates_cleaned_v2.csv', true);
+
+  // Combine cleaned files
+  await combineFiles(
+    ['Subject_Matter_cleaned.csv', 'Color_Used_cleaned_v2.csv', 'Episode_Dates_cleaned_v2.csv'],
+    combinedFile
+  );
 };
 
-// Run the processing
-processAndExportData();
+// Run the script
+processAndExportData().catch((err) => {
+  console.error('Error processing data:', err);
+});
