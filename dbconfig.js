@@ -12,7 +12,7 @@ const { DB_USER, DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT } = process.env;
 const port = parseInt(DB_PORT, 10) || 5432;
 
 // Check if all required environment variables are set
-if (!DB_USER || !DB_HOST || !DB_NAME || !DB_PASSWORD) {
+if (!DB_USER || !DB_HOST || !DB_NAME || !DB_PASSWORD || !DB_PORT) {
   throw new Error('Missing required database environment variables.');
 }
 
