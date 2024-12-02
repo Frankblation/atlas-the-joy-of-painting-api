@@ -1,4 +1,4 @@
---HCreate 'paintings' table
+--Create 'paintings' table
 CREATE TABLE paintings (
     painting_id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,

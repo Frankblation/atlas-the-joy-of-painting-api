@@ -42,6 +42,7 @@ export const getEpisodes = async (req, res) => {
 
         
         // Execute the query
+    console.log('Executing query:', query, 'with params:', params);
         const result = await pool.query(query, params);
         res.json(result.rows);
     } catch (err) {
